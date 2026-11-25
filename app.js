@@ -6,7 +6,7 @@
 const $ = (sel) => document.querySelector(sel);
 const main = () => $('#main');
 const token = () => sessionStorage.getItem('manzili_token') || '';
-let SETTINGS = { company_name: '', country: 'sa', currency_label: 'ر.س', default_vat_rate: '15', payment_methods: ['نقداً', 'تحويل'], app_name: 'منزلي' };
+let SETTINGS = { company_name: '', country: 'sa', currency_label: 'ر.س', default_vat_rate: '15', payment_methods: ['نقداً', 'تحويل'], app_name: 'منزلي', timezone: 'Asia/Riyadh' };
 let ME = null;
 const CUR = () => SETTINGS.currency_label || 'ر.س';
 const money = (v) => `${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${CUR()}`;
@@ -15,7 +15,16 @@ const warrantyOn = () => SETTINGS.warranty_enabled !== false;
 const num = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const round2 = (x) => Math.round((num(x) + Number.EPSILON) * 100) / 100;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const todayStr = () => { const d = new Date(); const p = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
+// «اليوم» بتوقيت بلد المتجر (من الإعدادات) لا بتوقيت جهاز المستخدم — حتى لا
+// تُرحَّل فاتورة لليوم التالي لمجرد أن الجهاز مضبوط على بلد آخر (تحديث 6)
+const todayStr = () => {
+  const tz = (typeof SETTINGS !== 'undefined' && SETTINGS.timezone) || 'Asia/Riyadh';
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const g = (t) => (parts.find((x) => x.type === t) || {}).value;
+    return `${g('year')}-${g('month')}-${g('day')}`;
+  } catch (_) { const d = new Date(); const p = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+};
 const monthFirst = () => `${todayStr().slice(0, 7)}-01`;
 const fmtDate = (s) => (s ? String(s).slice(0, 10) : '—');
 const DEPT_LABELS = { appliances: 'أجهزة', home: 'مفروشات وأدوات مطبخ' };
