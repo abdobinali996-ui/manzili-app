@@ -988,7 +988,9 @@ app.get('/api/dashboard', auth, route(async (req, res) => {
     ...d.purchases.map((p) => ({ kind: 'purchase', kind_label: 'شراء', id: p.id, invoice_no: p.invoice_no, date: p.date, party_name: (partyById(d, p.supplier_id) || {}).name || '', total: p.total, status: p.status })),
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.id - a.id).slice(0, 8);
   res.json({
-    today, sales_today: salesToday, sales_month: salesMonth, profit_month: profitMonth,
+    today, sales_today: salesToday, sales_month: salesMonth,
+    // الربح للمدير فقط (تحديث 4 — بطلب عبده): لا يصل رقم الربح لحساب الموظف أصلاً
+    profit_month: req.user && req.user.role === 'admin' ? profitMonth : null,
     low_stock_count: lowStock.length, low_stock: lowStock.slice(0, 10),
     installments_due_month: calc.round2(dueThisMonth), overdue_total: overdueTotal,
     overdue_plans: overduePlans.slice(0, 10),
@@ -1041,13 +1043,14 @@ app.get('/api/reports/sales', auth, route(async (req, res) => {
       byDept.set(itemDept(l.item_id), row);
     }
   }
+  const isAdm = req.user && req.user.role === 'admin'; // الربح للمدير فقط (تحديث 4)
   res.json({
     from, to,
     invoices: invoices.map((s) => ({ ...s, has_plan: d.plans.some((p) => p.sale_invoice_id === s.id) })),
     sales_total: salesTotal, returns_total: returnsTotal,
     net: calc.round2(salesTotal - returnsTotal),
-    profit: calc.round2([...byDept.values()].reduce((s, r) => s + r.profit, 0)),
-    by_department: [...byDept.values()].map((r) => ({ ...r, label: DEPARTMENTS[r.department] || r.department })),
+    profit: isAdm ? calc.round2([...byDept.values()].reduce((s, r) => s + r.profit, 0)) : null,
+    by_department: [...byDept.values()].map((r) => ({ ...r, profit: isAdm ? r.profit : null, label: DEPARTMENTS[r.department] || r.department })),
   });
 }));
 app.get('/api/reports/installments', auth, route(async (req, res) => {
