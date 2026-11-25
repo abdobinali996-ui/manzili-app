@@ -29,7 +29,7 @@ const NULLABLE = new Set([
 const BOOLS = new Set(['active', 'track_serial']);
 const SEQUENCES = { sales: 'sales_seq', purchase: 'purchase_seq', returns: 'returns_seq', receipt: 'receipt_seq' };
 
-const SETTING_KEYS = ['company_name', 'company_logo', 'company_phone', 'company_address', 'country', 'default_vat_rate'];
+const SETTING_KEYS = ['company_name', 'company_logo', 'company_phone', 'company_address', 'country', 'default_vat_rate', 'warranty_enabled'];
 const SETTING_DEFAULTS = { country: 'sa', default_vat_rate: '15' };
 
 const usePg = !!process.env.DATABASE_URL;
