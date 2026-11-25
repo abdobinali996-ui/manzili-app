@@ -636,12 +636,25 @@ function renderPosTotals() {
     <span>الإجمالي: <strong>${money(t.total)}</strong></span>
     <span class="${t.remaining > 0 ? 'bad' : 'ok'}">المتبقي: ${money(t.remaining)}</span>`;
 }
-function posLineItem(idx, val) {
+async function posLineItem(idx, val) {
   const l = posState.lines[idx];
   l.item_id = val;
   const item = CACHE.items.find((i) => i.id === Number(val));
   if (item) { l.price = item.sale_price; l.serial_ids = []; l.qty = item.track_serial ? 0 : 1; l.warranty_months = item.warranty_months || 0; }
   renderPosLines();
+  // اختيار تلقائي للسيريال (بطلب عبده): لو الجهاز المتاح منه قطعة واحدة
+  // فقط، اختر سيريالها تلقائياً بدل خطوة الاختيار اليدوي
+  if (item && item.track_serial && Number(item.on_hand) === 1) {
+    try {
+      const serials = await api(`/api/items/${item.id}/serials`);
+      const avail = serials.filter((s) => s.status === 'in_stock');
+      if (avail.length === 1 && posState.lines[idx] && Number(posState.lines[idx].item_id) === item.id) {
+        posState.lines[idx].serial_ids = [avail[0].id];
+        posState.lines[idx].qty = 1;
+        renderPosLines();
+      }
+    } catch (_) { /* عند أي فشل يبقى الاختيار اليدوي كما هو */ }
+  }
 }
 function posLineSet(idx, field, val) { posState.lines[idx][field] = val; renderPosLines(); }
 function posLineRemove(idx) { posState.lines.splice(idx, 1); renderPosLines(); }
