@@ -237,7 +237,7 @@ async function viewDashboard() {
     <div class="cards">
       <div class="card good"><div class="lbl">مبيعات اليوم</div><div class="num">${money(d.sales_today)}</div></div>
       <div class="card good"><div class="lbl">مبيعات هذا الشهر</div><div class="num">${money(d.sales_month)}</div></div>
-      <div class="card ${d.profit_month >= 0 ? 'good' : 'warn'}"><div class="lbl">الربح التقديري هذا الشهر</div><div class="num">${money(d.profit_month)}</div></div>
+      ${isAdmin() ? `<div class="card ${d.profit_month >= 0 ? 'good' : 'warn'}"><div class="lbl">الربح التقديري هذا الشهر</div><div class="num">${money(d.profit_month)}</div></div>` : ''}
       <div class="card"><div class="lbl">قيمة المخزون بالتكلفة</div><div class="num">${money(d.stock_value)}</div></div>
       <div class="card" style="cursor:pointer" onclick="go('items')"><div class="lbl">أصناف منخفضة المخزون</div><div class="num">${d.low_stock_count}</div></div>
       <div class="card"><div class="lbl">أقساط مستحقة هذا الشهر</div><div class="num">${money(d.installments_due_month)}</div></div>
@@ -1167,8 +1167,8 @@ async function viewReports() {
         <span>المبيعات: <strong>${money(r.sales_total)}</strong></span>
         <span>المرتجعات: <strong>${money(r.returns_total)}</strong></span>
         <span>الصافي: <strong>${money(r.net)}</strong></span>
-        <span class="ok">الربح التقديري: ${money(r.profit)}</span></div>
-      ${r.by_department.length ? `<p class="muted">${r.by_department.map((x) => `${esc(x.label)}: ${money(x.total)} (ربح ${money(x.profit)})`).join(' · ')}</p>` : ''}
+        ${isAdmin() ? `<span class="ok">الربح التقديري: ${money(r.profit)}</span>` : ''}</div>
+      ${r.by_department.length ? `<p class="muted">${r.by_department.map((x) => `${esc(x.label)}: ${money(x.total)}${isAdmin() ? ` (ربح ${money(x.profit)})` : ''}`).join(' · ')}</p>` : ''}
       ${r.invoices.length ? `<div class="table-wrap"><table><tr><th>الرقم</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th></tr>
         ${r.invoices.map((i) => `<tr><td><strong>${esc(i.invoice_no)}</strong>${i.has_plan ? ' <span class="badge amber">تقسيط</span>' : ''}</td><td>${fmtDate(i.date)}</td><td>${esc(i.customer_name)}</td><td class="money">${money(i.total)}</td></tr>`).join('')}</table></div>`
       : '<p class="muted">لا مبيعات في الفترة.</p>'}`;
