@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منزلي | إدارة محل الأدوات المنزلية</title>
+<meta name="theme-color" content="#0b5563">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div id="loginScreen" class="login-screen">
+  <form id="loginForm" class="login-card">
+    <div class="login-logo" id="loginLogo">🏠</div>
+    <h1 id="loginCompany">منزلي</h1>
+    <p class="muted">أجهزة بالسيريال والضمان · مفروشات وأدوات مطبخ · مبيعات وتقسيط ومخزون</p>
+    <label>اسم المستخدم<input name="username" required autocomplete="username"></label>
+    <label>كلمة المرور<input name="password" type="password" required autocomplete="current-password"></label>
+    <button class="btn primary big" type="submit">دخول</button>
+    <p id="loginError" class="error"></p>
+  </form>
+</div>
+
+<!-- التطبيق -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="brand"><img id="brandLogo" class="brand-logo hidden" alt=""><span id="brandName">🏠 منزلي</span></div>
+    <div class="top-actions">
+      <span id="userChip" style="font-size:13px;color:#dcebef;white-space:nowrap"></span>
+      <button id="logoutBtn" class="btn ghost">خروج</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="dashboard" class="active">لوحة التحكم</button>
+    <button data-view="pos">نقطة بيع</button>
+    <button data-view="sales">المبيعات</button>
+    <button data-view="purchases">المشتريات</button>
+    <button data-view="items">الأصناف والمخزون</button>
+    <button data-view="parties">العملاء والموردون</button>
+    <button data-view="plans">التقسيط</button>
+    <button data-view="reports">التقارير</button>
+    <button data-view="warranty">بحث الضمان</button>
+    <button data-view="settings">الإعدادات</button>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<!-- نافذة منبثقة عامة -->
+<div id="modalBackdrop" class="modal-backdrop hidden">
+  <div class="modal" id="modalBox">
+    <div class="modal-head">
+      <h3 id="modalTitle"></h3>
+      <button id="modalClose" class="btn ghost">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- منطقة الطباعة -->
+<div id="printArea"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

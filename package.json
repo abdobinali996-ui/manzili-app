@@ -1,0 +1,16 @@
+{
+  "name": "manzili-app",
+  "version": "1.0.0",
+  "description": "منزلي — برنامج إدارة محل أدوات منزلية: أجهزة بالسيريال والضمان، مفروشات وأدوات مطبخ بالكمية، مبيعات وتقسيط ومخزون",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/api.test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}
