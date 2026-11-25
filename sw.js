@@ -1,5 +1,5 @@
 // Service Worker — يخزّن ملفات الواجهة للفتح السريع، والبيانات دائماً من الخادم
-const CACHE = 'manzili-app-v3';
+const CACHE = 'manzili-app-v4';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
