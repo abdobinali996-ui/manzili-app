@@ -10,6 +10,8 @@ let SETTINGS = { company_name: '', country: 'sa', currency_label: 'ر.س', defau
 let ME = null;
 const CUR = () => SETTINGS.currency_label || 'ر.س';
 const money = (v) => `${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${CUR()}`;
+// مفتاح الضمان (تحديث 3): عند تعطيله من الإعدادات يختفي من الواجهة والفواتير
+const warrantyOn = () => SETTINGS.warranty_enabled !== false;
 const num = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const round2 = (x) => Math.round((num(x) + Number.EPSILON) * 100) / 100;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -206,7 +208,7 @@ document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('cli
 async function render() {
   const views = {
     dashboard: viewDashboard, pos: viewPos, sales: viewSales, purchases: viewPurchases,
-    items: viewItems, parties: viewParties, plans: viewPlans, reports: viewReports,
+    items: viewItems, parties: viewParties, plans: viewPlans, reminders: viewReminders, reports: viewReports,
     warranty: viewWarranty, settings: viewSettings,
   };
   main().innerHTML = '<p class="muted">جارٍ التحميل…</p>';
@@ -220,6 +222,8 @@ async function startApp() {
   $('#app').classList.remove('hidden');
   $('#userChip').textContent = `${ME.display_name} · ${ME.role === 'admin' ? 'مدير' : 'موظف'}`;
   await refreshCache();
+  const wBtn = document.querySelector('#tabs button[data-view="warranty"]');
+  if (wBtn) wBtn.style.display = warrantyOn() ? '' : 'none';
   render();
 }
 
@@ -287,13 +291,13 @@ async function viewItems() {
         </select></label>
         <button class="btn" id="itemSearchBtn">بحث</button>
       </div>
-      ${items.length ? `<div class="table-wrap"><table><tr><th>الصنف</th><th>الباركود</th><th>القسم</th><th>الوحدة</th><th>التكلفة</th><th>سعر البيع</th><th>المتاح</th><th>الضمان</th><th></th></tr>
+      ${items.length ? `<div class="table-wrap"><table><tr><th>الصنف</th><th>الباركود</th><th>القسم</th><th>الوحدة</th><th>التكلفة</th><th>سعر البيع</th><th>المتاح</th>${warrantyOn() ? '<th>الضمان</th>' : ''}<th></th></tr>
         ${items.map((i) => `<tr${i.active === false ? ' style="opacity:.55"' : ''}><td><strong>${esc(i.name)}</strong>${i.category ? `<div class="muted" style="font-size:12px">${esc(i.category)}</div>` : ''}</td>
           <td class="serial-nums">${esc(i.barcode || '')}</td>
           <td><span class="badge ${i.department === 'appliances' ? '' : 'gray'}">${DEPT_LABELS[i.department] || ''}</span></td>
           <td>${esc(i.unit)}</td><td class="money">${money(i.cost_price)}</td><td class="money">${money(i.sale_price)}</td>
           <td class="money ${i.on_hand <= num(i.min_stock) ? 'debit-red' : ''}">${i.on_hand}${i.track_serial ? ' <span class="badge dept-tag">سيريال</span>' : ''}</td>
-          <td>${i.warranty_months ? `${i.warranty_months} شهر` : '—'}</td>
+          ${warrantyOn() ? `<td>${i.warranty_months ? `${i.warranty_months} شهر` : '—'}</td>` : ''}
           <td style="white-space:nowrap">
             <button class="btn small" onclick="itemForm(${i.id})">تعديل</button>
             ${i.track_serial ? `<button class="btn small" onclick="showSerials(${i.id})">السيريالات</button>` : `<button class="btn small" onclick="adjustForm(${i.id})">تسوية مخزون</button>`}
@@ -329,7 +333,7 @@ async function itemForm(id) {
     </div>
     <div class="grid2">
       <label>حد تنبيه انخفاض المخزون<input name="min_stock" type="number" step="0.001" min="0" value="${it ? it.min_stock : 0}"></label>
-      <label>الضمان الافتراضي (شهر)<input name="warranty_months" type="number" step="1" min="0" value="${it ? it.warranty_months : 0}"></label>
+      ${warrantyOn() ? `<label>الضمان الافتراضي (شهر)<input name="warranty_months" type="number" step="1" min="0" value="${it ? it.warranty_months : 0}"></label>` : `<input type="hidden" name="warranty_months" value="${it ? it.warranty_months : 0}">`}
     </div>
     <label id="itSerialWrap"><span style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="track_serial" value="1" style="width:auto" ${it && it.track_serial ? 'checked' : ''}> تتبّع بالسيريال (إلزامي لقسم الأجهزة)</span></label>
     <label><span style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="active" value="1" style="width:auto" ${!it || it.active !== false ? 'checked' : ''}> الصنف نشط</span></label>`,
@@ -366,10 +370,10 @@ async function showSerials(itemId) {
   const serials = await api(`/api/items/${itemId}/serials`);
   const statusLabel = { in_stock: ['في المخزون', 'green'], sold: ['مباع', ''], returned: ['مرتجع', 'amber'] };
   openModal(`سيريالات — ${item ? esc(item.name) : ''}`, `
-    ${serials.length ? `<div class="table-wrap"><table><tr><th>السيريال</th><th>الحالة</th><th>العميل</th><th>نهاية الضمان</th></tr>
+    ${serials.length ? `<div class="table-wrap"><table><tr><th>السيريال</th><th>الحالة</th><th>العميل</th>${warrantyOn() ? '<th>نهاية الضمان</th>' : ''}</tr>
       ${serials.map((s) => { const cust = CACHE.parties.find((p) => p.id === s.customer_id); const st = statusLabel[s.status] || [s.status, ''];
         return `<tr><td class="serial-nums">${esc(s.serial_no)}</td><td><span class="badge ${st[1]}">${st[0]}</span></td>
-        <td>${cust ? esc(cust.name) : '—'}</td><td>${fmtDate(s.warranty_end)}</td></tr>`; }).join('')}</table></div>`
+        <td>${cust ? esc(cust.name) : '—'}</td>${warrantyOn() ? `<td>${fmtDate(s.warranty_end)}</td>` : ''}</tr>`; }).join('')}</table></div>`
     : '<p class="muted">لا توجد سيريالات مسجلة لهذا الصنف بعد — تُسجَّل من فواتير الشراء.</p>'}
     <div class="form-actions"><button class="btn" onclick="closeModal()">إغلاق</button></div>`, true);
 }
@@ -554,7 +558,7 @@ async function viewPos() {
         </select></label>
         <label>التاريخ<input id="posDate" type="date" value="${posState.date}"></label>
       </div>
-      <div class="table-wrap"><table class="lines-table pos-lines"><tr><th style="min-width:210px">الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>السيريال / الضمان</th><th></th></tr>
+      <div class="table-wrap"><table class="lines-table pos-lines"><tr><th style="min-width:210px">الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>السيريال${warrantyOn() ? ' / الضمان' : ''}</th><th></th></tr>
         <tbody id="posLines"></tbody></table></div>
       <button class="btn" id="posAddLine" style="margin-top:8px">+ إضافة سطر</button>
       <div class="grid2" style="margin-top:14px">
@@ -609,7 +613,7 @@ function renderPosLines() {
     const item = CACHE.items.find((i) => i.id === Number(l.item_id));
     const serialCell = item && item.track_serial
       ? `<button type="button" class="btn small" onclick="pickSerials(${idx})">اختيار السيريالات (${l.serial_ids.length})</button>
-         <label style="margin:6px 0 0">ضمان (شهر)<input type="number" min="0" step="1" value="${l.warranty_months === '' ? (item.warranty_months || 0) : l.warranty_months}" onchange="posLineSet(${idx},'warranty_months',this.value)"></label>`
+         ${warrantyOn() ? `<label style="margin:6px 0 0">ضمان (شهر)<input type="number" min="0" step="1" value="${l.warranty_months === '' ? (item.warranty_months || 0) : l.warranty_months}" onchange="posLineSet(${idx},'warranty_months',this.value)"></label>` : ''}`
       : '<span class="muted">—</span>';
     return `<tr>
       <td><select onchange="posLineItem(${idx},this.value)">${posItemOptions(l.item_id)}</select>
@@ -741,7 +745,7 @@ async function showSale(id) {
     </table>
     <div class="table-wrap"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
       ${inv.lines.map((l) => `<tr><td>${esc(l.item_name)}${l.serials && l.serials.length ? `<div class="serial-nums">${l.serials.map((s) => esc(s.serial_no)).join(' · ')}</div>
-        ${l.serials.map((s) => s.warranty_end ? `<div class="muted" style="font-size:12px">ضمان ${esc(s.serial_no)} حتى ${fmtDate(s.warranty_end)}</div>` : '').join('')}` : ''}</td>
+        ${warrantyOn() ? l.serials.map((s) => s.warranty_end ? `<div class="muted" style="font-size:12px">ضمان ${esc(s.serial_no)} حتى ${fmtDate(s.warranty_end)}</div>` : '').join('') : ''}` : ''}</td>
         <td>${l.qty}</td><td class="money">${money(l.price)}</td><td class="money">${money(l.line_total)}</td></tr>`).join('')}
     </table></div>
     <div class="lines-total">
@@ -764,7 +768,7 @@ async function printSaleInvoice(id) {
   const warrantyLines = [];
   for (const l of inv.lines) {
     for (const ser of l.serials || []) {
-      if (ser.warranty_end) warrantyLines.push(`الجهاز ${esc(l.item_name)} — سيريال <span class="serial-nums">${esc(ser.serial_no)}</span> — الضمان حتى ${fmtDate(ser.warranty_end)}`);
+      if (warrantyOn() && ser.warranty_end) warrantyLines.push(`الجهاز ${esc(l.item_name)} — سيريال <span class="serial-nums">${esc(ser.serial_no)}</span> — الضمان حتى ${fmtDate(ser.warranty_end)}`);
     }
   }
   $('#printArea').innerHTML = `<div class="invoice-doc">
@@ -1050,6 +1054,67 @@ async function printInstallmentReceipt(id) {
   window.print();
 }
 
+// ---------------- تذكيرات واتساب (تحديث 2 — بطلب عبده) ----------------
+// تطبيع رقم الجوال لصيغة واتساب الدولية حسب بلد الإعدادات: أرقام محلية تبدأ
+// بـ 0 تُستبدل بمقدمة الدولة، وما كان دولياً يبقى كما هو.
+function waPhone(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  const cc = SETTINGS.country === 'eg' ? '20' : '966';
+  if (d.startsWith('0')) d = cc + d.slice(1);
+  else if (!d.startsWith(cc) && d.length <= 11) d = cc + d;
+  return d;
+}
+function daysDiff(a, b) { // أيام من a إلى b (تواريخ YYYY-MM-DD)
+  const pa = Date.parse(String(a).slice(0, 10) + 'T00:00:00');
+  const pb = Date.parse(String(b).slice(0, 10) + 'T00:00:00');
+  return Math.round((pb - pa) / 86400000);
+}
+function waReminderLink(p, kind, amount, dueDate) {
+  const phone = waPhone(p.customer_phone);
+  if (!phone) return '';
+  const shop = SETTINGS.company_name || SETTINGS.app_name || 'منزلي';
+  const msg = kind === 'overdue'
+    ? `السلام عليكم ${p.customer_name}، معك ${shop}.\nنذكّرك بأن لديك قسطاً متأخراً بقيمة ${money(amount)} مستحقاً منذ ${dueDate} عن فاتورة رقم ${p.invoice_no || ''}.\nنرجو التكرم بالسداد في أقرب وقت — وشكراً لتعاونك.`
+    : `السلام عليكم ${p.customer_name}، معك ${shop}.\nنذكّرك بأن قسطك القادم بقيمة ${money(amount)} يستحق بتاريخ ${dueDate} عن فاتورة رقم ${p.invoice_no || ''}.\nشكراً لالتزامك، ونتشرف بخدمتك دائماً.`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+}
+async function viewReminders() {
+  await refreshCache();
+  const plans = (await api('/api/plans')).filter((p) => p.summary && p.summary.status === 'active' && p.summary.remaining > 0.009);
+  const today = todayStr();
+  const overdue = [], upcoming = [];
+  for (const p of plans) {
+    const s = p.summary;
+    if (s.arrears > 0.009) {
+      const firstLate = (s.installments || []).find((i) => i.remaining > 0.009 && String(i.due_date).slice(0, 10) <= today);
+      overdue.push({ p, amount: s.arrears, date: firstLate ? String(firstLate.due_date).slice(0, 10) : (s.next_due ? s.next_due.due_date : ''), days: firstLate ? daysDiff(firstLate.due_date, today) : 0 });
+    } else if (s.next_due && daysDiff(today, s.next_due.due_date) >= 0 && daysDiff(today, s.next_due.due_date) <= 10) {
+      upcoming.push({ p, amount: s.next_due.remaining, date: s.next_due.due_date, days: daysDiff(today, s.next_due.due_date) });
+    }
+  }
+  overdue.sort((a, b) => b.days - a.days || b.amount - a.amount);
+  upcoming.sort((a, b) => a.days - b.days);
+  const row = (r, kind) => {
+    const link = waReminderLink(r.p, kind, r.amount, r.date);
+    return `<tr><td><strong>${esc(r.p.customer_name)}</strong><div class="muted" style="font-size:11px">${esc(r.p.customer_phone || 'لا يوجد رقم جوال')}</div></td>
+      <td>${esc(r.p.invoice_no || '')}</td><td class="money">${money(r.amount)}</td><td>${esc(r.date)}</td>
+      <td>${kind === 'overdue' ? `<span class="badge red">متأخر ${r.days} يوم</span>` : (r.days === 0 ? '<span class="badge">يستحق اليوم</span>' : `<span class="badge">بعد ${r.days} يوم</span>`)}</td>
+      <td>${link ? `<a class="btn small" style="background:#25d366;color:#fff;border-color:#25d366" href="${link}" target="_blank" rel="noopener">واتساب</a>` : '<span class="muted">—</span>'}</td></tr>`;
+  };
+  const table = (rows, kind) => `<div class="table-wrap"><table><tr><th>العميل</th><th>الفاتورة</th><th>المبلغ المستحق</th><th>تاريخ الاستحقاق</th><th>الحالة</th><th></th></tr>${rows.map((r) => row(r, kind)).join('')}</table></div>`;
+  main().innerHTML = `
+    <div class="section">
+      <div class="section-head"><h3>تذكيرات واتساب — أقساط العملاء</h3></div>
+      <p class="muted">دوس «واتساب» جنب أي عميل هتفتح محادثته برسالة تذكير جاهزة باسمه والمبلغ المستحق وتاريخه — الإرسال بيتم من رقمك أنت. المتأخرون أولاً، وبعدهم من قسطهم يستحق خلال ١٠ أيام.</p>
+      <h4 style="margin:14px 0 6px">متأخرون (${overdue.length})</h4>
+      ${overdue.length ? table(overdue, 'overdue') : '<p class="muted">لا توجد أقساط متأخرة — ممتاز 🎉</p>'}
+      <h4 style="margin:18px 0 6px">أقساط تستحق خلال ١٠ أيام (${upcoming.length})</h4>
+      ${upcoming.length ? table(upcoming, 'upcoming') : '<p class="muted">لا أقساط قادمة خلال ١٠ أيام.</p>'}
+    </div>`;
+}
+
 // ---------------- التقارير ----------------
 async function viewReports() {
   await refreshCache();
@@ -1161,6 +1226,10 @@ async function viewSettings() {
           </select></label>
           <label>ضريبة القيمة المضافة الافتراضية %<input name="default_vat_rate" type="number" step="0.01" min="0" value="${esc(s.default_vat_rate || '15')}"></label>
         </div>
+        <label>الضمان<select name="warranty_enabled">
+          <option value="1" ${s.warranty_enabled !== false ? 'selected' : ''}>مفعّل — يظهر في الأصناف والفواتير مع خانة بحث الضمان</option>
+          <option value="0" ${s.warranty_enabled === false ? 'selected' : ''}>معطّل — مخفي من الواجهة والفواتير (التتبع بالسيريال يبقى كما هو)</option>
+        </select></label>
         <label>شعار المحل (اختياري)<input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp"></label>
         ${s.company_logo ? `<img class="logo-preview" src="${s.company_logo}" alt="">` : ''}
         <div class="form-actions"><button type="submit" class="btn primary" ${isAdmin() ? '' : 'disabled'}>حفظ الإعدادات</button></div>
