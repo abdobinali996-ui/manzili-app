@@ -129,6 +129,9 @@ function settingsOut(settings) {
     currency_label: preset.label,
     timezone: preset.tz,
     payment_methods: preset.methods,
+    // مفتاح الضمان (تحديث 3 — بطلب عبده): مفعّل افتراضياً، ويُعطَّل من
+    // الإعدادات (النسخة المصرية) فيختفي من الواجهة والفواتير دون حذف بياناته
+    warranty_enabled: settings.warranty_enabled !== '0',
   };
 }
 const itemById = (d, id) => d.items.find((i) => i.id === Number(id)) || null;
